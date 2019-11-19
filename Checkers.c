@@ -6,9 +6,11 @@
 #include<stdbool.h>
 #define place(x, y) printf(" %d,%d", x, y), fflush(stdout)
 #define DEBUG printf("DEBUG [MESSAGE]\n"), fflush(stdout)
+const int Inf = 0x3f3f3f3f;
 typedef char byte;
 /********************/
 #define SIZE (byte)8 
+#define PIECE (byte)12
 #define EMPTY (byte)0
 #define BLACK (byte)1
 #define WHITE (byte)2
@@ -16,15 +18,18 @@ typedef char byte;
 #define kingValue (byte)3
 #define LEFT (byte)-1
 #define RIGHT (byte)1
+#define MAXNODE (byte)1
+#define MINNODE (byte)0
 #define max(a, b) (a > b ? a : b)
 /********************/
+byte Depth;
 byte row, column;
 byte myColor;
 //bool Black_side; //down_side fisrt
 //bool White_side; //up_side
 byte Command[SIZE * SIZE]; //store orders
 byte myMarch, opponentMarch;
-byte myScore, opponentScore;
+byte myScore = 12, opponentScore = 12, diff; //to make diff as big as possilbe
 #define printScore printf("myScore: %d opponentScore: %d\n", myScore, opponentScore), fflush(stdout)
 /*if(the_checker[1].color=="white"){
 		cpy_downRight = upRight;
@@ -47,10 +52,24 @@ typedef struct{
     bool mustAttack;
     byte color;
 }s;
+typedef struct{
+    byte r, c;
+    bool isKing;
+    bool mustAttack;
+    byte color;
+}c;
 s Board[SIZE][SIZE];
+c Chess[PIECE];
+int beta = Inf, alpha = - Inf;
+byte minValue, maxValue;
+//Beta is the minimum upper bound of possible solutions  最好情况最少多少分
+//Alpha is the maximum lower bound of possible solutions 最坏情况最多多少分
+//a <=n <= b    a >= b stop consideration
 void boardInitialize(void);
 void printBoard(void);
+void chessInit(void);
 void dealOppoentPlace(char *s, byte len);
+void Evaluation(void);
 void calculateScore(void);
 int get_max(int r, int c){
     int Max = max(Board[r][c].up_left_point, Board[r][c].up_right_point);
@@ -82,13 +101,15 @@ int main(){
             break;
         if(!strncmp(Command, "START ", 5)){
             myColor = *(Command + 6) - '0';
-            if(myColor == 1) myMarch = -1;
-            if(myColor == 2) myMarch = 1;
+            chessInit();
+            if(myColor == 1) myMarch = -1;  //black up
+            if(myColor == 2) myMarch = 1; //white
             boardInitialize();
             printf("OK\n"), fflush(stdout);
         }
         if(!strncmp(Command, "TURN ", 4)){
-            /**function**/
+            Depth = 6;
+            /**function**/ //build tree
             printf("Calculating\n"), fflush(stdout);
         }
         if(!strncmp(Command, "PLACE ", 5)){
@@ -98,6 +119,16 @@ int main(){
         }
     }
     return 0;
+}
+void chessInit(){
+    int cnt = 0;
+    for(int i = 0; i < SIZE; i++)
+        for(int j = 0; j < SIZE; j++)
+            if(Board[i][j].color == myColor){
+                Chess[cnt].r = i, Chess[cnt].c = j;
+                Chess[cnt].color = myColor;
+                cnt++;
+            }             
 }
 void boardInitialize(void){
     for(int i = 0; i < SIZE; i++)
@@ -121,8 +152,8 @@ void printBoard(void){
 void dealOppoentPlace(char *s, byte len){
     byte preR, preC, nowR, nowC;
     byte midR, midC;
-    for(int i = 5; i < len; i += 4){
-        if(i == 5) 
+    for(int i = 7; i < len; i += 4){
+        if(i == 7) 
             preR = *(s + i + 1) - '0', preC = *(s + i + 3) - '0';
         else{
             nowR = *(s + i + 1) - '0', nowC = *(s + i + 3) - '0';
@@ -135,10 +166,11 @@ void dealOppoentPlace(char *s, byte len){
         }
     }
     printBoard();
-    calculateScore();
-    printScore;
+    //calculateScore();
+    //printScore;
 }
 void calculateScore(void){
+    myScore = opponentScore = false;
     for(int i = 0; i < SIZE; i++){
         for(int j = 0; j < SIZE; j++)
             if(Board[i][j].color == myColor)
