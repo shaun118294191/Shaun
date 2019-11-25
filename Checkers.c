@@ -35,7 +35,7 @@ byte Command[SIZE * SIZE]; //store orders
 byte myMarch, opponentMarch;
 double myScore, opponentScore; //to make diff as big as possilbe
 byte mustJump /*in function jumpJudge, remember to set it to 0*/, longestJump;
-#define printScore printf("myScore: %d opponentScore: %d\n", myScore, opponentScore), fflush(stdout)
+#define printScore printf("myScore: %.4f opponentScore: %.4f\n", myScore, opponentScore), fflush(stdout)
 typedef struct{ 
     byte r[MAXJUMP];
     byte c[MAXJUMP];
@@ -69,7 +69,7 @@ void chessInit(void);
 void dealOppoentPlace(char *s, byte len);
 int evaluateScore/*Score evaluation*/(void);
 void moveClear(void);
-void jumpJudge(int color, int r, int c, int cntJump, bool isHeader); //0 can't jump
+void jumpJudge(int color, int r, int c, int cntJump); //0 can't jump
 void evaluatePath(int);
 int Min(int depth);
 int Max(int depth);
@@ -79,6 +79,7 @@ int main(){
     freopen("test.in", "r", stdin);
     freopen("test.out", "w", stdout);
     while(true){
+        memset(Command, '\0', sizeof(Command));
         gets(Command);
         if(!strncmp(Command, "END ", 3)) 
             break;
@@ -94,6 +95,8 @@ int main(){
             Depth = 6;
             timeOfTurn = clock() / (double)CLOCKS_PER_SEC;
             //moveClear()
+            longestJump = 0, jumpJudge(opponentColor, 5, 2, 0);
+            printf("%d\n", longestJump), fflush(stdout);
             printf("Calculating\n"), fflush(stdout);
         }
         if(!strncmp(Command, "PLACE ", 5)){
@@ -145,7 +148,6 @@ void boardInitialize(void){
     for(int i = 0; i < SIZE; i += 2)
         Board[5][i].color = Board[7][i].color = BLACK,
         Board[1][i].color = WHITE;
-    printBoard();
 }
 void printBoard(void){
     for(int i = 0; i < SIZE; i++){
@@ -153,6 +155,7 @@ void printBoard(void){
             printf("%d ", Board[i][j].color);
         putchar('\n');
     }  
+    putchar('\n');
 }
 void dealOppoentPlace(char *s, byte len){ 
     byte preR, preC, nowR, nowC;
@@ -165,8 +168,8 @@ void dealOppoentPlace(char *s, byte len){
             midR = (preR + nowR) >> 1;
             midC = (preC + nowC) >> 1;
             Board[nowR][nowC] = Board[preR][preC];
-            memset(&Board[preR][preC], 0, sizeof(Board[preR][preC]));
-            memset(&Board[midR][midC], 0, sizeof(Board[midR][midC]));
+            memset(&Board[preR][preC], 0, sizeof(board));
+            memset(&Board[midR][midC], 0, sizeof(board));
             preR = nowR, preC = nowC;
         }
     }
@@ -174,7 +177,7 @@ void dealOppoentPlace(char *s, byte len){
     //calculateScore();
     //printScore;
 }
-int evaluateScore(void){
+int evaluateScore(void){/*should be much more complex, needed to be changed*/
     myScore = opponentScore = false;
     for(int i = 0; i < PIECE; i++){
         if(myChess[i].color != EMPTY && myChess[i].isKing) myScore += 3;
@@ -193,27 +196,26 @@ int evaluateScore(void){
     printScore;
     return myScore - opponentScore;
 }
-void jumpJudge(int color/*black or white side*/, int r, int c, int cntJump, bool isHeader){
+void jumpJudge(int color/*black or white side*/, int r, int c, int cntJump){
     int cur;
     if(cntJump < longestJump) return;
-    if(cntJump >= longestJump){
-        longestJump = cntJump;
-        //store path
-    }
+    if(cntJump > longestJump) longestJump = cntJump;
     for(int i = 0; i < 4; i ++){
         int nextR = r + dr[i], nextC = c + dc[i];
         int jumpR = r + 2 * dr[i], jumpC = c + 2 * dc[i];
-        if(nextR >= SIZE || nextR < 0 || nextC >= SIZE || nextC < 0) continue;
-        if(Board[nextR][nextC].color != color && !Board[jumpR][jumpC].color){
-            if(isHeader) longestJump = 1;
+        if(jumpR >= SIZE || jumpR < 0 || jumpC >= SIZE || jumpC < 0) continue;
+        if(Board[nextR][nextC].color == color && !Board[jumpR][jumpC].color){
             //紧邻棋子为敌方棋子，且敌方棋子后为空白
-            board start = Board[r][c], opponent =Board[nextR][nextC];
-            Board[jumpR][jumpC] = Board[r][c];
-            memset(&Board[r][c], 0, sizeof(Board[r][c]));
-            memset(&Board[nextR][nextC], 0, sizeof(Board[nextR][nextC]));
-        /**/jumpJudge(color, jumpR, jumpC, cntJump + 1, false);
+            board start = Board[r][c], opponent = Board[nextR][nextC];//make copy
+            Board[jumpR][jumpC] = Board[r][c];//change value
+            memset(&Board[r][c], 0, sizeof(board));//change value
+            memset(&Board[nextR][nextC], 0, sizeof(board));//change value
+            /*get next jump*/
+            jumpJudge(color, jumpR, jumpC, cntJump + 1);
+            /*get next jump*/
             Board[r][c] = start, Board[nextR][nextC] = opponent;
-            memset(&Board[jumpR][jumpC], 0, sizeof(Board[jumpR][jumpC]));
+            memset(&Board[jumpR][jumpC], 0, sizeof(board));
+            /*back track*/
         }
     }
 }
