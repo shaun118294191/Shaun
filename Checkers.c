@@ -1,13 +1,16 @@
+#pragma GCC optimize (2)
 #include<stdio.h>
 #include<math.h>
 #include<string.h>
 #include<ctype.h>
 #include<stdlib.h>
 #include<stdbool.h>
+#include<time.h> 
 #define place(x, y) printf(" %d,%d", x, y), fflush(stdout)
 #define DEBUG printf("DEBUG [MESSAGE]\n"), fflush(stdout)
 const int Inf = 0x3f3f3f3f;
 typedef char byte;
+//CLOCKS_PER_SEC
 /********************/
 #define SIZE (byte)8 
 #define PIECE (byte)12
@@ -16,82 +19,62 @@ typedef char byte;
 #define WHITE (byte)2
 #define chessValue (byte)1
 #define kingValue (byte)3
-#define LEFT (byte)-1
-#define RIGHT (byte)1
 #define MAXNODE (byte)1
 #define MINNODE (byte)0
-#define max(a, b) (a > b ? a : b)
+#define MAXJUMP (byte)16
+#define max(a,b) (a > b ? a : b)
 /********************/
-byte Depth;
+double timeOfTurn;
+double currentTime;
+byte Depth = 6;
 byte row, column;
-byte myColor;
+byte myColor, opponentColor;
 //bool Black_side; //down_side fisrt
 //bool White_side; //up_side
 byte Command[SIZE * SIZE]; //store orders
 byte myMarch, opponentMarch;
-byte myScore = 12, opponentScore = 12, diff; //to make diff as big as possilbe
+double myScore, opponentScore; //to make diff as big as possilbe
+byte mustJump /*in function jumpJudge, remember to set it to 0*/, longestJump;
 #define printScore printf("myScore: %d opponentScore: %d\n", myScore, opponentScore), fflush(stdout)
-/*if(the_checker[1].color=="white"){
-		cpy_downRight = upRight;
-		cpy_downLeft = upLeft;
-		cpy_upLeft = downLeft;
-		cpy_upRight = downRight;
-	}
-	else{
-		cpy_downRight = upLeft;
-		cpy_downLeft = upRight;
-		cpy_upLeft = downRight;
-		cpy_upRight = downLeft;
-}  */
+typedef struct{ 
+    byte r[MAXJUMP];
+    byte c[MAXJUMP];
+}Path;
 typedef struct{
-    int up_left_point;
-    int up_right_point;
-    int down_left_point;
-    int down_right_point;
     bool isKing;
-    bool mustAttack;
     byte color;
-}s;
+}board;
 typedef struct{
     byte r, c;
     bool isKing;
     bool mustAttack;
     byte color;
-}c;
-s Board[SIZE][SIZE];
-c Chess[PIECE];
-int beta = Inf, alpha = - Inf;
-byte minValue, maxValue;
+}chess;
+board Board[SIZE][SIZE];
+chess myChess[PIECE], opponentChess[PIECE];
+Path jumpPath;
+/*******move*************/
+byte dr[] = {-1, -1, 1, 1};
+byte dc[] = {-1, 1, -1, 1};
+/*******move*************/
 //Beta is the minimum upper bound of possible solutions  最好情况最少多少分
 //Alpha is the maximum lower bound of possible solutions 最坏情况最多多少分
 //a <=n <= b    a >= b stop consideration
+int beta = Inf, alpha = - Inf;
+byte minValue, maxValue;
+//alpha beta tree search
 void boardInitialize(void);
 void printBoard(void);
 void chessInit(void);
 void dealOppoentPlace(char *s, byte len);
-void Evaluation(void);
-void calculateScore(void);
-int get_max(int r, int c){
-    int Max = max(Board[r][c].up_left_point, Board[r][c].up_right_point);
-    Max = max(Max, max(Board[r][c].down_left_point, Board[r][c].down_right_point));
-    return Max;
-}
-inline void eliminateChess(){
-    return;
-}
-inline void enemyMoveCoty(){
-    return;
-}
-inline void Evaluate(){ //if two points are the same, choose the most optimal way
-    
-}
-inline void executeMove(){
-    Evaluate();
-    return;
-}
-void clear(char *s, int len){
-    memset(s, '\0', len * sizeof(char));
-}
+int evaluateScore/*Score evaluation*/(void);
+void moveClear(void);
+void jumpJudge(int color, int r, int c, int cntJump, bool isHeader); //0 can't jump
+void evaluatePath(int);
+int Min(int depth);
+int Max(int depth);
+int minMax(int depth);
+/*******function**********/
 int main(){
     freopen("test.in", "r", stdin);
     freopen("test.out", "w", stdout);
@@ -101,15 +84,16 @@ int main(){
             break;
         if(!strncmp(Command, "START ", 5)){
             myColor = *(Command + 6) - '0';
-            chessInit();
+            opponentColor = (myColor == 1? 2 : 1);
+            boardInitialize(), chessInit()/*, moveClear()*/;
             if(myColor == 1) myMarch = -1;  //black up
             if(myColor == 2) myMarch = 1; //white
-            boardInitialize();
             printf("OK\n"), fflush(stdout);
         }
         if(!strncmp(Command, "TURN ", 4)){
             Depth = 6;
-            /**function**/ //build tree
+            timeOfTurn = clock() / (double)CLOCKS_PER_SEC;
+            //moveClear()
             printf("Calculating\n"), fflush(stdout);
         }
         if(!strncmp(Command, "PLACE ", 5)){
@@ -120,15 +104,36 @@ int main(){
     }
     return 0;
 }
-void chessInit(){
-    int cnt = 0;
-    for(int i = 0; i < SIZE; i++)
-        for(int j = 0; j < SIZE; j++)
-            if(Board[i][j].color == myColor){
-                Chess[cnt].r = i, Chess[cnt].c = j;
-                Chess[cnt].color = myColor;
-                cnt++;
-            }             
+void chessInit(void){
+    int cnt1 = 0, cnt2 = 0;
+    if(myColor == BLACK){
+        for(int i = 5; i < SIZE; i++)
+            for(int j = 0; j < SIZE; j++)
+                if(Board[i][j].color == myColor){
+                    myChess[cnt1].r = i, myChess[cnt1].c = j;
+                    myChess[cnt1++].color = myColor;
+                }
+        for(int i = 2; i >= 0; i--)
+            for(int j = 0; j < SIZE; j++)
+                if(Board[i][j].color == opponentColor){
+                    opponentChess[cnt2].r = i, opponentChess[cnt2].c = j;
+                    opponentChess[cnt2++].color = opponentColor;
+                }
+    }
+    if(myColor == WHITE){
+        for(int i = 5; i < SIZE; i++)
+            for(int j = 0; j < SIZE; j++)
+                if(Board[i][j].color == opponentColor){
+                    opponentChess[cnt2].r = i, opponentChess[cnt2].c = j;
+                    opponentChess[cnt2++].color = opponentColor;
+                }
+        for(int i = 2; i >= 0; i--)
+            for(int j = 0; j < SIZE; j++)
+                if(Board[i][j].color == myColor){
+                    myChess[cnt1].r = i, myChess[cnt1].c = j;
+                    myChess[cnt1++].color = myColor;
+                }
+    }      
 }
 void boardInitialize(void){
     for(int i = 0; i < SIZE; i++)
@@ -149,7 +154,7 @@ void printBoard(void){
         putchar('\n');
     }  
 }
-void dealOppoentPlace(char *s, byte len){
+void dealOppoentPlace(char *s, byte len){ 
     byte preR, preC, nowR, nowC;
     byte midR, midC;
     for(int i = 7; i < len; i += 4){
@@ -169,13 +174,328 @@ void dealOppoentPlace(char *s, byte len){
     //calculateScore();
     //printScore;
 }
-void calculateScore(void){
+int evaluateScore(void){
     myScore = opponentScore = false;
-    for(int i = 0; i < SIZE; i++){
-        for(int j = 0; j < SIZE; j++)
-            if(Board[i][j].color == myColor)
-                myScore += (Board[i][j].isKing ? kingValue : chessValue);
-            else if(Board[i][j].color)
-                opponentScore += (Board[i][j].isKing ? kingValue : chessValue);
-    }  
+    for(int i = 0; i < PIECE; i++){
+        if(myChess[i].color != EMPTY && myChess[i].isKing) myScore += 3;
+        if(opponentChess[i].color != EMPTY && opponentChess[i].isKing) opponentScore += 3;
+        if(myChess[i].color != EMPTY && !myChess[i].isKing){
+            if(myMarch == -1)
+                myScore = myScore + SIZE - myChess[i].r;
+            else myScore = myScore + myChess[i].r + 1;
+        } 
+        if(opponentChess[i].color != EMPTY && !opponentChess[i].isKing){
+            if(opponentMarch == 1)
+                opponentScore = opponentScore + opponentChess[i].r + 1;
+            else opponentScore = opponentScore + SIZE - opponentChess[i].r;
+        } 
+    } 
+    printScore;
+    return myScore - opponentScore;
 }
+void jumpJudge(int color/*black or white side*/, int r, int c, int cntJump, bool isHeader){
+    int cur;
+    if(cntJump < longestJump) return;
+    if(cntJump >= longestJump){
+        longestJump = cntJump;
+        //store path
+    }
+    for(int i = 0; i < 4; i ++){
+        int nextR = r + dr[i], nextC = c + dc[i];
+        int jumpR = r + 2 * dr[i], jumpC = c + 2 * dc[i];
+        if(nextR >= SIZE || nextR < 0 || nextC >= SIZE || nextC < 0) continue;
+        if(Board[nextR][nextC].color != color && !Board[jumpR][jumpC].color){
+            if(isHeader) longestJump = 1;
+            //紧邻棋子为敌方棋子，且敌方棋子后为空白
+            board start = Board[r][c], opponent =Board[nextR][nextC];
+            Board[jumpR][jumpC] = Board[r][c];
+            memset(&Board[r][c], 0, sizeof(Board[r][c]));
+            memset(&Board[nextR][nextC], 0, sizeof(Board[nextR][nextC]));
+        /**/jumpJudge(color, jumpR, jumpC, cntJump + 1, false);
+            Board[r][c] = start, Board[nextR][nextC] = opponent;
+            memset(&Board[jumpR][jumpC], 0, sizeof(Board[jumpR][jumpC]));
+        }
+    }
+}
+/*int MinMax(int depth) {
+ if(SideToMove() == WHITE) { // 白方是“最大”者
+ return Max(depth);
+} else { // 黑方是“最小”者
+ return Min(depth);
+ }
+}
+
+int Max(int depth) {
+　int best = -INFINITY;
+　if (depth <= 0) {
+　　return Evaluate();
+　}
+  currentTime = clock() / (double)CLOCKS_PER_SEC;
+　GenerateLegalMoves();
+　while (MovesLeft()) {
+　　MakeNextMove();
+　　val = Min(depth - 1);
+　　UnmakeMove();
+　　if (val > best) {
+　　　best = val;
+　　}
+　}
+　return best;
+}
+　
+int Min(int depth) {
+　int best = INFINITY;　// 注意这里不同于“最大”算法
+　if (depth <= 0) {
+　　return Evaluate();
+　}
+　GenerateLegalMoves();
+　while (MovesLeft()) {
+　　MakeNextMove();
+　　val = Max(depth - 1);
+　　UnmakeMove();
+　　if (val < best) { 　// 注意这里不同于“最大”算法
+　　　best = val;
+　　}
+　}
+　return best;
+}*/
+
+/*
+int minimax( Node& node, int depth, bool isMaximizingPlayer, int alpha, int beta )
+{
+    if ( node.childs.size() == 0 )
+        return node.value;
+
+    int value, bestVal;
+
+    if ( isMaximizingPlayer ) {
+        bestVal = -100000;
+        for ( auto& child : node.childs ) {
+            value = minimax(child, depth+1, false, alpha, beta);
+            bestVal = std::max( bestVal, value);
+            if ( bestVal == value && depth == 0 )
+                node.move = child.move;
+            alpha = std::max( alpha, bestVal);
+            if ( beta <= alpha )
+                break;
+        }
+        return bestVal;
+
+    } else {
+        bestVal = 100000;
+        for ( auto& child : node.childs ) {
+            value = minimax(child, depth+1, true, alpha, beta);
+            bestVal = std::min( bestVal, value );
+            if ( bestVal == value && depth == 0 )
+                node.move = child.move;
+            beta = std::min( beta, bestVal);
+            if ( beta <= alpha )
+                break;
+        return bestVal;
+        }
+    }
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
