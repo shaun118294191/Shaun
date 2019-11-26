@@ -37,9 +37,11 @@ double myScore, opponentScore; //to make diff as big as possilbe
 byte mustJump /*in function jumpJudge, remember to set it to 0*/, longestJump;
 #define printScore printf("myScore: %.4f opponentScore: %.4f\n", myScore, opponentScore), fflush(stdout)
 typedef struct{ 
-    byte r[MAXJUMP];
-    byte c[MAXJUMP];
+    byte preR, preC;
 }Path;
+typedef struct{
+    byte r, c;
+}pathStore;
 typedef struct{
     bool isKing;
     byte color;
@@ -52,7 +54,8 @@ typedef struct{
 }chess;
 board Board[SIZE][SIZE];
 chess myChess[PIECE], opponentChess[PIECE];
-Path jumpPath;
+Path prePath[SIZE][SIZE];
+pathStore movePath[PIECE];
 /*******move*************/
 byte dr[] = {-1, -1, 1, 1};
 byte dc[] = {-1, 1, -1, 1};
@@ -69,11 +72,9 @@ void chessInit(void);
 void dealOppoentPlace(char *s, byte len);
 int evaluateScore/*Score evaluation*/(void);
 void moveClear(void);
-void jumpJudge(int color, int r, int c, int cntJump); //0 can't jump
+void jumpJudge(int color/*black side or white side*/, int r, int c, int cntJump); //0 can't jump
 void evaluatePath(int);
-int Min(int depth);
-int Max(int depth);
-int minMax(int depth);
+int minMax(bool isMaxNode, int r, int c, int depth, int alpha, int beta);
 /*******function**********/
 int main(){
     freopen("test.in", "r", stdin);
@@ -85,7 +86,7 @@ int main(){
             break;
         if(!strncmp(Command, "START ", 5)){
             myColor = *(Command + 6) - '0';
-            opponentColor = (myColor == 1? 2 : 1);
+            opponentColor = (myColor == 1 ? 2 : 1);
             boardInitialize(), chessInit()/*, moveClear()*/;
             if(myColor == 1) myMarch = -1;  //black up
             if(myColor == 2) myMarch = 1; //white
@@ -102,7 +103,7 @@ int main(){
         if(!strncmp(Command, "PLACE ", 5)){
             dealOppoentPlace(Command, strlen(Command));
             /**function**/
-            printf("Okay, placed\n"), fflush(stdout);
+            //printf("Okay, placed\n"), fflush(stdout);
         }
     }
     return 0;
@@ -155,9 +156,9 @@ void printBoard(void){
             printf("%d ", Board[i][j].color);
         putchar('\n');
     }  
-    putchar('\n');
+    printf("Okay, printed\n");
 }
-void dealOppoentPlace(char *s, byte len){ 
+void dealOppoentPlace(char *s, byte len){ //finished
     byte preR, preC, nowR, nowC;
     byte midR, midC;
     for(int i = 7; i < len; i += 4){
@@ -165,11 +166,12 @@ void dealOppoentPlace(char *s, byte len){
             preR = *(s + i + 1) - '0', preC = *(s + i + 3) - '0';
         else{
             nowR = *(s + i + 1) - '0', nowC = *(s + i + 3) - '0';
-            midR = (preR + nowR) >> 1;
-            midC = (preC + nowC) >> 1;
+            midR = preR + nowR >> 1;
+            midC = preC + nowC >> 1;
             Board[nowR][nowC] = Board[preR][preC];
             memset(&Board[preR][preC], 0, sizeof(board));
-            memset(&Board[midR][midC], 0, sizeof(board));
+            if(midR != preR && midR != nowR)
+                memset(&Board[midR][midC], 0, sizeof(board));
             preR = nowR, preC = nowC;
         }
     }
@@ -196,9 +198,8 @@ int evaluateScore(void){/*should be much more complex, needed to be changed*/
     printScore;
     return myScore - opponentScore;
 }
-void jumpJudge(int color/*black or white side*/, int r, int c, int cntJump){
-    int cur;
-    if(cntJump < longestJump) return;
+/*jumpJudge finished*/
+void jumpJudge(int color/*black or white side,should be opponent's*/, int r, int c, int cntJump){
     if(cntJump > longestJump) longestJump = cntJump;
     for(int i = 0; i < 4; i ++){
         int nextR = r + dr[i], nextC = c + dc[i];
@@ -218,6 +219,9 @@ void jumpJudge(int color/*black or white side*/, int r, int c, int cntJump){
             /*back track*/
         }
     }
+}
+int minMax(bool isMaxNode, int r, int c, int depth, int alpha, int beta){
+
 }
 /*int MinMax(int depth) {
  if(SideToMove() == WHITE) { // 白方是“最大”者
