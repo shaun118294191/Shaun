@@ -22,7 +22,9 @@ typedef char byte;
 #define MAXNODE (byte)1
 #define MINNODE (byte)0
 #define MAXJUMP (byte)16
+#define MAXMCNT (byte)20
 #define max(a,b) (a > b ? a : b)
+#define min(a,b) (a < b ? a : b)
 /********************/
 double timeOfTurn;
 double currentTime;
@@ -41,6 +43,9 @@ typedef struct{
 }Path;
 typedef struct{
     byte r, c;
+}canMove;
+typedef struct{
+    byte r, c;
 }pathStore;
 typedef struct{
     bool isKing;
@@ -55,6 +60,7 @@ typedef struct{
 board Board[SIZE][SIZE];
 chess myChess[PIECE], opponentChess[PIECE];
 Path prePath[SIZE][SIZE];
+canMove canMoveChess[MAXMCNT];
 pathStore movePath[PIECE];
 /*******move*************/
 byte dr[] = {-1, -1, 1, 1};
@@ -70,11 +76,12 @@ void boardInitialize(void);
 void printBoard(void);
 void chessInit(void);
 void dealOppoentPlace(char *s, byte len);
-int evaluateScore/*Score evaluation*/(void);
+double evaluateScore/*Score evaluation*/(void);
 void moveClear(void);
-void jumpJudge(int color/*black side or white side*/, int r, int c, int cntJump); //0 can't jump
+void jumpJudge(byte color/*black side or white side*/, int r, int c, int cntJump); //0 can't jump
 void evaluatePath(int);
-int minMax(bool isMaxNode, int r, int c, int depth, int alpha, int beta);
+int minMax(bool isMaxNode, byte r, byte c, byte depth, int alpha, int beta);
+byte getPossilbeMoves(byte cntMoves, byte limit, byte cntChess, byte color);
 /*******function**********/
 int main(){
     freopen("test.in", "r", stdin);
@@ -179,7 +186,7 @@ void dealOppoentPlace(char *s, byte len){ //finished
     //calculateScore();
     //printScore;
 }
-int evaluateScore(void){/*should be much more complex, needed to be changed*/
+double evaluateScore(void){/*should be much more complex, needed to be changed*/
     myScore = opponentScore = false;
     for(int i = 0; i < PIECE; i++){
         if(myChess[i].color != EMPTY && myChess[i].isKing) myScore += 3;
@@ -199,7 +206,7 @@ int evaluateScore(void){/*should be much more complex, needed to be changed*/
     return myScore - opponentScore;
 }
 /*jumpJudge finished*/
-void jumpJudge(int color/*black or white side,should be opponent's*/, int r, int c, int cntJump){
+void jumpJudge(byte color/*black or white side,should be opponent's*/, int r, int c, int cntJump){
     if(cntJump > longestJump) longestJump = cntJump;
     for(int i = 0; i < 4; i ++){
         int nextR = r + dr[i], nextC = c + dc[i];
@@ -220,8 +227,23 @@ void jumpJudge(int color/*black or white side,should be opponent's*/, int r, int
         }
     }
 }
-int minMax(bool isMaxNode, int r, int c, int depth, int alpha, int beta){
-
+byte getPossilbeMoves(byte cntMoves, byte limit, byte cntChess, byte color){
+    for(int i = 1; i <= PIECE; i++);
+}
+int minMax(bool isMaxNode, byte r, byte c, byte depth, int alpha, int beta){
+    if(depth == Depth) return evaluateScore();
+    int value, bestVal, cntCh;
+    if(isMaxNode){
+        bestVal = Inf;  
+        cntCh = getPossilbeMoves(0, 12, 0, myColor);
+        /**/
+        for(int i = 0; i < PIECE; i++){
+            longestJump = 0, jumpJudge(opponentColor, r, c, 0);
+        }
+    }
+    if(!isMaxNode){
+        bestVal = -Inf;
+    }
 }
 /*int MinMax(int depth) {
  if(SideToMove() == WHITE) { // 白方是“最大”者
