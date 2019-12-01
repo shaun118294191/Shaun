@@ -79,7 +79,7 @@ void chessInit(chess *, byte);
 void dealOppoentPlace(char * s, byte len);
 double evaluateScore/*Score evaluation*/(void);
 void moveClear(void);
-void jumpJudge(byte color/*should be my color*/, int r, int c, int cntJump); //0 can't jump
+void jumpJudge(byte color/*should be my color*/, byte r, byte c, byte cJump); //0 can't jump
 void evaluatePath(int);
 double minMax(bool isMaxNode, byte r, byte c, byte depth, double alpha, double beta);
 byte getPossilbeMoves(byte limitChess, byte cntChess, byte color);
@@ -212,8 +212,8 @@ double evaluateScore(void){/*should be much more complex, needed to be changed*/
     return myScore - opponentScore;
 }
 /*jumpJudge finished*/
-void jumpJudge(byte color/*should be my color*/, int r, int c, int cntJump){
-    if(cntJump > thisJump) thisJump = cntJump;
+void jumpJudge(byte color/*should be my color*/, byte r, byte c, byte cJump){
+    if(cJump > thisJump) thisJump = cJump;
     for(int i = 0; i < 4; i ++){
         int nextR = r + *(pDr + i), nextC = c + *(pDc + i);
         int jumpR = nextR + *(pDr + i), jumpC = nextC + *(pDc + i);
@@ -226,7 +226,7 @@ void jumpJudge(byte color/*should be my color*/, int r, int c, int cntJump){
             memset(&Board[r][c], 0, sizeof(board));//change value
             memset(&Board[nextR][nextC], 0, sizeof(board));//change value
             /*get next jump*/
-            jumpJudge(color, jumpR, jumpC, cntJump + 1);
+            jumpJudge(color, jumpR, jumpC, cJump + 1);
             /*get next jump*/
             Board[r][c] = start, Board[nextR][nextC] = opponent;
             memset(&Board[jumpR][jumpC], 0, sizeof(board));
