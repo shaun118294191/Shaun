@@ -10,6 +10,10 @@ TURN
  * 6th Dec 
  * minNode的记录 debug
  * **/
+/**
+ * 6th Dec 
+ * minNode的记录 debug
+ * **/
 #include<stdio.h> 
 #include<math.h>
 #include<string.h>
@@ -301,14 +305,15 @@ void jumpJudge(byte color/*should be my color*/, byte r, byte c, byte cJump){
         if(Board[nextR][nextC].color == (~color + 1) && !Board[jumpR][jumpC].color){
             //紧邻棋子为敌方棋子，且敌方棋子后为空白
             board start = Board[r][c], opponent = Board[nextR][nextC];//make copy
+            byte chessId = start.chessId;
             Board[jumpR][jumpC] = Board[r][c];//change value
-            changeChessPos(&Chess[Board[r][c].chessId], jumpR, jumpC);
+            changeChessPos(&Chess[chessId], jumpR, jumpC);
             clearBoard(&Board[r][c]), clearBoard(&Board[nextR][nextC]);//change value   
             /*get next jump*/
             jumpJudge(color, jumpR, jumpC, cJump + 1);
             /*get next jump*/
             Board[r][c] = start, Board[nextR][nextC] = opponent;
-            backTrackChessPos(&Chess[Board[jumpR][jumpC].chessId], r, c);
+            backTrackChessPos(&Chess[chessId], r, c);
             clearBoard(&Board[jumpR][jumpC]);
             /*back track*/
         }
@@ -355,6 +360,25 @@ byte getPossilbeMoves(byte limitChess, byte cntChess, byte color){
     return cntChess;
 }
 void makeJump(bool isMaxNode, byte color, byte depth, byte cJump, byte r, byte c, double alpha, double beta, double * jumpBest){
+    /*不再继续跳跃 继续向下搜索*/
+    if(cJump == longestJump){
+        judgeKing(&Board[r][c], r, color);
+        double value = minMax(isMaxNode ^ 1, depth + 1, alpha, beta); 
+        if(isMaxNode){
+            if((*jumpBest) < value){
+                *jumpBest = value;
+                if(depth == 0){
+                    storeCommand.cntMoves = cJump;
+                    storeCommand.r[cJump] = r;
+                    storeCommand.c[cJump] = c;
+                    tmpCommand = storeCommand;
+                }
+            }
+        }
+        else if((*jumpBest) > value) *jumpBest = value;
+        Board[r][c].isKing = false;
+        return;
+    }
     for(byte i = 0; i < 4; i++){
         byte nextR = r + *(pDr + i), nextC = c + *(pDc + i);
         byte jumpR = nextR + *(pDr + i), jumpC = nextC + *(pDc + i);
@@ -380,23 +404,6 @@ void makeJump(bool isMaxNode, byte color, byte depth, byte cJump, byte r, byte c
             clearBoard(&Board[jumpR][jumpC]);
             /*back track*/
         }
-    }
-    if(cJump == longestJump){
-        judgeKing(&Board[r][c], r, color);
-        double value = minMax(isMaxNode ^ 1, depth + 1, alpha, beta); 
-        if(isMaxNode){
-            if((*jumpBest) < value){
-                *jumpBest = value;
-                if(depth == 0){
-                    storeCommand.cntMoves = cJump;
-                    storeCommand.r[cJump] = r;
-                    storeCommand.c[cJump] = c;
-                    tmpCommand = storeCommand;
-                }
-            }
-        }
-        else if((*jumpBest) > value) *jumpBest = value;
-        Board[r][c].isKing = false;
     }
 }
 void makeMove(bool isMaxNode, byte color, byte depth, byte r, byte c, double alpha, double beta, double * moveBest){
