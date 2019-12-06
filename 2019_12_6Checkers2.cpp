@@ -1,6 +1,6 @@
 /**
  * 6th Dec 
- * minNode的记录 debug
+ * 估值函数 debug
  * **/
 #include<stdio.h> 
 #include<math.h>
@@ -37,7 +37,6 @@ byte myColor, opponentColor;
 //bool Black_side; //down_side fisrt
 //bool White_side; //up_side
 byte Command[SIZE * SIZE]; //store orders
-byte myMarch, opponentMarch;
 double myScore, opponentScore; //to make diff as big as possilbe
 byte cntJump, thisJump, longestJump;
 #define printScore printf("myScore: %.4f opponentScore: %.4f\n", myScore, opponentScore), fflush(stdout)
@@ -58,7 +57,7 @@ typedef struct{
     byte color;
 }chess;
 board Board[SIZE][SIZE];
-chess Chess[PIECE << 1], moveChess[MAXMCNT], jumpChess[MAXMCNT];
+chess Chess[PIECE << 1 + 1], moveChess[MAXMCNT], jumpChess[MAXMCNT];
 myCommand moveCommand, tmpCommand, storeCommand;
 /*******move*************/
 byte blackDr[] = {-1, -1, 1, 1}, whiteDr[] = {1, 1, -1, -1};
@@ -95,20 +94,18 @@ int main(){
         memset(Command, '\0', sizeof(Command));
         gets(Command);
         if(!strncmp(Command, "END ", 3)) 
-            return 0;
+            exit(0);
         if(!strncmp(Command, "START ", 5)){
             myColor = (*(Command + 6) - '0') == 1 ? 1 : -1;
             opponentColor = -myColor;
-            boardInitialize(), chessInit(&Chess[0], 0)/*, moveClear()*/;
-            if(myColor == 1) myMarch = -1;  //black up
-                else myMarch = 1; //white
+            boardInitialize(), chessInit(&Chess[1], 1)/*, moveClear()*/;
             printf("OK\n"), fflush(stdout);
         }
         if(!strncmp(Command, "TURN ", 4)){
             Depth = 4;
             timeOfTurn = clock() / (double)CLOCKS_PER_SEC;
             int ans = minMax(true, 0, -Inf, Inf);
-            printf("%d", moveCommand.cntMoves), fflush(stdout);
+            printf("%d", moveCommand.cntMoves + 1), fflush(stdout);
             for(int i = 0; i <= moveCommand.cntMoves; i++)
                 place(moveCommand.r[i], moveCommand.c[i]);
             printf("\n"), fflush(stdout);
@@ -189,12 +186,12 @@ inline static void backTrackChessPos(chess * pChess, int preR, int preC){
     pChess->r = preR, pChess->c = preC;
 }
 inline static void cleanLgstJump(void){
-    for(int i = 0; i < PIECE; i++) Chess[i].lgstJump = 0;
+    for(int i = 1; i <= (PIECE << 1); i++) Chess[i].lgstJump = 0;
 }
 void printBoard(void){
     for(int i = 0; i < SIZE; i++){
         for(int j = 0; j < SIZE; j++)
-            printf("%2d ", Board[i][j].color);
+            printf("%2d ", Board[i][j].chessId);
         putchar('\n');
     }  
     printf("Okay, printed\n");
@@ -258,7 +255,7 @@ void clearCommand(){
 }
 double evaluateScore(void){/*should be much more complex, needed to be changed*/
     myScore = opponentScore = false;
-    /*for(int i = 0; i < PIECE; i++){
+    /*for(int i = 1; i <= PIECE; i++){
         if(myChess[i].color != EMPTY && myChess[i].isKing) myScore += 3;
         if(opponentChess[i].color != EMPTY && opponentChess[i].isKing) opponentScore += 3;
         if(myChess[i].color != EMPTY && !myChess[i].isKing){
@@ -273,7 +270,7 @@ double evaluateScore(void){/*should be much more complex, needed to be changed*/
         } 
     } */
     //printScore;
-    return myScore - opponentScore;
+    return 0.0;
 }
 void jumpJudge(byte color/*should be my color*/, byte r, byte c, byte cJump){
     if(cJump > thisJump) thisJump = cJump;
@@ -301,12 +298,13 @@ void jumpJudge(byte color/*should be my color*/, byte r, byte c, byte cJump){
 byte getPossilbeMoves(byte limitChess, byte cntChess, byte color){
     //id 0~11 mychess  id 12~23 opponent chess
     byte startI, endI, endJ = 2;
-    if(color == myColor) startI = 0, endI = PIECE;
-        else startI = PIECE, endI = PIECE << 1;
+    if(color == myColor) startI = 1, endI = PIECE;
+        else startI = PIECE + 1, endI = PIECE << 1;
+    //get chess id range
     if(color == BLACK) pDr = blackDr, pDc = blackDc;
         else pDr = whiteDr, pDc = whiteDc;
-        //move pointer
-    for(byte i = startI; i < endI; i++){
+    //move pointer
+    for(byte i = startI; i <= endI; i++){
         byte r = Chess[i].r, c = Chess[i].c;
         if(Board[r][c].color == EMPTY) continue;
         thisJump = 0;
@@ -316,9 +314,10 @@ byte getPossilbeMoves(byte limitChess, byte cntChess, byte color){
             Chess[i].lgstJump = thisJump;
             longestJump = thisJump;
             jumpChess[cntJump++] = Chess[i];
-            cntJump++;
+            //cntJump++; //????
             continue;
         }
+        if(longestJump) continue; //可以跳跃 不用再判断能否走
         /********jump part*****************/
         /*just move in the following lines*/
         if(Board[r][c].isKing) endJ = 4;
@@ -337,7 +336,7 @@ byte getPossilbeMoves(byte limitChess, byte cntChess, byte color){
     return cntChess;
 }
 void makeJump(bool isMaxNode, byte color, byte depth, byte cJump, byte r, byte c, double alpha, double beta, double * jumpBest){
-    for(byte i = 0; i < 4; i ++){
+    for(byte i = 0; i < 4; i++){
         byte nextR = r + *(pDr + i), nextC = c + *(pDc + i);
         byte jumpR = nextR + *(pDr + i), jumpC = nextC + *(pDc + i);
         if(isNotInBound(jumpR, jumpC)) 
@@ -366,7 +365,7 @@ void makeJump(bool isMaxNode, byte color, byte depth, byte cJump, byte r, byte c
         judgeKing(&Board[r][c], r, color);
         double value = minMax(isMaxNode ^ 1, depth + 1, alpha, beta);
         if(isMaxNode)
-            if(*jumpBest > value){
+            if(*jumpBest < value){
                 *jumpBest = value;
                 if(depth == 0){
                     storeCommand.cntMoves = cJump;
@@ -375,7 +374,7 @@ void makeJump(bool isMaxNode, byte color, byte depth, byte cJump, byte r, byte c
                     tmpCommand = storeCommand;
                 }
             }
-        else if(*jumpBest < value) *jumpBest = value;
+        else if(*jumpBest > value) *jumpBest = value;
         Board[r][c].isKing = false;
     }
 }
@@ -393,16 +392,16 @@ void makeMove(bool isMaxNode, byte color, byte depth, byte r, byte c, double alp
             clearBoard(&Board[r][c]);
             double value = minMax(isMaxNode ^ 1, depth + 1, alpha, beta);
             if(isMaxNode)
-                if(*moveBest > value){
+                if(*moveBest < value){
                     *moveBest = value;
                     if(depth == 0){
                         storeCommand.cntMoves = 1;
                         storeCommand.r[0] = r, storeCommand.c[0] = c;
-                        storeCommand.r[1] = nextR, storeCommand.c[0] = nextC;
+                        storeCommand.r[1] = nextR, storeCommand.c[1] = nextC;
                         tmpCommand = storeCommand;
                     }
                 }
-            else if(*moveBest < value) *moveBest = value;
+            else if(*moveBest > value) *moveBest = value;
             Board[r][c] = start;
             backTrackChessPos(&Chess[Board[nextR][nextC].chessId], r, c);
             clearBoard(&Board[nextR][nextC]);    
@@ -412,12 +411,12 @@ void makeMove(bool isMaxNode, byte color, byte depth, byte r, byte c, double alp
 double minMax(bool isMaxNode, byte depth, double alpha, double beta){
     /*remember to add chessId*/
    // printf("now In %d\n", __LINE__);
-    if(depth == Depth) return evaluateScore();
+    if(depth >= Depth) return evaluateScore();
     byte cntChess;
     double value, bestVal;
     cleanLgstJump();
     if(isMaxNode){
-        bestVal = -Inf, longestJump = 0, cntJump = 0/*related to jump chess*/;
+        value = -Inf, bestVal = -Inf, longestJump = 0, cntJump = 0/*related to jump chess*/;
         cntChess = getPossilbeMoves(6, 0, myColor);
         //for(int i = 0; i < cntJump; i++)
             //printf("%d %d\n", jumpChess[i].r, jumpChess[i].c);
@@ -454,7 +453,7 @@ double minMax(bool isMaxNode, byte depth, double alpha, double beta){
         //id 0~11 mychess  id 12~23 opponent chess
     }
     if(!isMaxNode){
-        bestVal = -Inf, longestJump = 0, cntJump = 0/*related to jump chess*/;
+        value = Inf, bestVal = Inf, longestJump = 0, cntJump = 0/*related to jump chess*/;
         cntChess = getPossilbeMoves(5, 0, opponentColor);
         //for(int i = 0; i < cntJump; i++)
             //printf("%d %d\n", jumpChess[i].r, jumpChess[i].c);
