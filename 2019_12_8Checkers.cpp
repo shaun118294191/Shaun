@@ -2,7 +2,7 @@
  * 8th Dec 
  * 搜索层数过高超时的问题
  * 中期问题
- * */
+*/
 #include<stdio.h> 
 #include<math.h>
 #include<string.h>
