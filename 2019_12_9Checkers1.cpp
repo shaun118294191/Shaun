@@ -1,5 +1,5 @@
 /**
- * 8th Dec 
+ * 9th Dec 
  * 搜索层数过高超时的问题
  * 中期问题
 */
@@ -107,9 +107,9 @@ int main(){
         if(!strncmp(Command, "TURN ", 4)){
             timeOfTurn = clock();
             curStep++;
-            if(curStep >= 20 && curStep < 50){
+            if(curStep >= 20 && curStep < 49){
                 if(curStep & 1) Depth = 11;
-                else Depth = 10; 
+                    else Depth = 10; 
             } else Depth = (60 - curStep) >= 12 ? 12 : 8;
             /******/
             getRestChess();
@@ -389,8 +389,8 @@ int getPossilbeMoves(int limitChess, int cntChess, int color){
     //id 1~12 mychess  id 13~24 opponent chess
     int startI, endI, endJ = 2;
     int * pDr, *pDc;
-    if(color == myColor) startI = 1, endI = PIECE;
-        else startI = PIECE + 1, endI = PIECE << 1;
+    startI = color == myColor ? 1 : PIECE + 1;
+    endI = color == myColor ? PIECE : PIECE << 1;
     //get chess id range
     pDr = color == BLACK ? blackDr : whiteDr;
     pDc = color == BLACK ? blackDc : whiteDc;
