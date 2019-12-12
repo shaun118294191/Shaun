@@ -1,5 +1,4 @@
 #define FAST
-
 #ifdef FAST 
     #pragma GCC optimize(2)
 #endif
@@ -8,6 +7,7 @@
  * 搜索层数过高超时的问题
  * 中期问题
 */
+//#define Debug
 #include<stdio.h> 
 #include<math.h>
 #include<string.h>
@@ -18,7 +18,7 @@
 #define place(x, y) printf(" %d,%d", x, y), fflush(stdout)
 #define DEBUG printf("DEBUG [MESSAGE]\n"), fflush(stdout)
 const int Inf = 0x3f3f3f3f;
-const int MAXSEC = 90000;
+const int MAXSEC = 89000;
 //CLOCKS_PER_SEC
 /********************/
 #define SIZE 8 
@@ -116,20 +116,24 @@ int main(){
             opponentColor = ~myColor + 1;
             boardInitialize(), chessInit(&Chess[1], 1)/*, moveClear()*/;
             printf("OK\n"), fflush(stdout);
-            //printBoard();
+            #ifdef Debug
+                printBoard();
+            #endif
         }
         if(!strncmp(Command, "TURN ", 4)){
             timeOfTurn = clock();
-            timeLimit = min(((MAXSEC - myTime) / (60 - curStep)), 1800);
+            timeLimit = min(((MAXSEC - myTime) / (60 - curStep)), 1780) - 80;
             depthManager();
             timeOfTurn = clock();
             int bestVal = minMax(true, 0, -Inf, Inf);
             deepeningCommand = moveCommand;
-            if(clock() - timeOfTurn <= 500) iterativeDeepening(bestVal);
+            if(clock() - timeOfTurn <= 500 && curStep <= 48) iterativeDeepening(bestVal);
             currentTime = clock();
             printMove();
             myTime += currentTime - timeOfTurn;
-            //printf("time cost = %.3f\n", 1.0 * (currentTime - timeOfTurn) / 1000);
+            #ifdef Debug
+                printf("time cost = %.3f\n", 1.0 * (currentTime - timeOfTurn) / 1000);
+            #endif
         }
         if(!strncmp(Command, "PLACE ", 5)){
             dealOppoentPlace(Command, strlen(Command));
@@ -156,6 +160,7 @@ inline static void depthManager(){ /**O2 13 not O2 12***/
     getRestChess();
     #ifdef FAST
         Depth = 12;
+        if(curStep >= 50) Depth = 10;
     #endif
     #ifndef FAST
         Depth = 11;
@@ -163,12 +168,12 @@ inline static void depthManager(){ /**O2 13 not O2 12***/
 }
 inline static void iterativeDeepening(int preBest){
     for(Depth = 13; ; Depth++){
-        if(clock() - timeOfTurn > 1000) return;
+        if(clock() - timeOfTurn >= 1000) return;
         int bestVal = minMax(true, 0, -Inf, Inf);
         if(clock() - timeOfTurn >= timeLimit) return;
-        if(bestVal >= preBest){
+        if(bestVal > preBest - QUARTER(CHESSVALUE) + 30){
             deepeningCommand = moveCommand;
-            preBest = bestVal;
+            preBest = bestVal - QUARTER(CHESSVALUE) + 30;
         } 
     }
 }
@@ -293,8 +298,10 @@ inline static void dealOppoentPlace(char * s, int len){ //finished
         }
     }
     judgeKing(&Board[preR][preC], preR, opponentColor);
-    //printBoardcolor();
-    //printBoard();
+    #ifdef Debug
+        printBoardcolor();
+        printBoard();
+    #endif
 }
 inline static void dealMyPlace(void){
     int preR, preC, nowR, nowC;
@@ -323,8 +330,10 @@ inline static void dealMyPlace(void){
     }
     judgeKing(&Board[preR][preC], preR, myColor);
     clearCommand();
-    //printBoardcolor();
-    //printBoard();
+    #ifdef Debug
+        printBoardcolor();
+        printBoard();
+    #endif
 }
 inline static void clearCommand(){
     memset(&moveCommand, 0, sizeof(myCommand));
@@ -388,8 +397,8 @@ inline static int evaluateScore(bool isMaxNode){/*should be much more complex, n
         if(c == 0 || c == SIZE - 1){
             if(isMaxNode){
                 if(boundaryJump(r, c, myColor)) myScore += HALF(CHESSVALUE);
-                    else if(canBeKing(r, c, myColor)) myScore += HALF(KINGVALUE) + QUARTER(KINGVALUE);
-                else myScore -= QUARTER(CHESSVALUE);
+                    else if(!pBoard->isKing && canBeKing(r, c, myColor)) myScore += HALF(KINGVALUE) + QUARTER(KINGVALUE);
+                else myScore -= QUARTER(CHESSVALUE) >> 1;
             }
         }
         if(myColor == BLACK && !pBoard->isKing) {
@@ -410,7 +419,7 @@ inline static int evaluateScore(bool isMaxNode){/*should be much more complex, n
             if(pBoard->isKing) opponentScore -= (isMaxNode ? HALF(KINGVALUE) : QUARTER(KINGVALUE)); //上一层为minNode 敌方已做完决策
             else opponentScore -= (isMaxNode ? HALF(CHESSVALUE) : QUARTER(CHESSVALUE)); //上一层为minNode 敌方已做完决策
         }       
-        if(c == 0 || c == SIZE - 1) opponentScore -= QUARTER(CHESSVALUE);
+        if(c == 0 || c == SIZE - 1) opponentScore -= QUARTER(CHESSVALUE) >> 1;
         if(opponentColor == WHITE && !pBoard->isKing) {
             if(r >= 7) opponentScore += r << 3;
         } 
@@ -580,7 +589,7 @@ void makeMove(bool isMaxNode, int  color, int  depth, int r, int c, int alpha, i
 }
 int minMax(bool isMaxNode, int depth, int alpha, int beta){
     if(depth >= Depth) return evaluateScore(isMaxNode);
-    if(clock() - timeOfTurn >= timeLimit - 30){
+    if(clock() - timeOfTurn >= timeLimit){
         int cutOffScore = evaluateScore(isMaxNode);
         if(isMaxNode) cutOffScore = cutOffScore > 0? cutOffScore << 1 : cutOffScore >> 1;
             else cutOffScore = cutOffScore > 0 ? cutOffScore >> 1 : cutOffScore << 1;
