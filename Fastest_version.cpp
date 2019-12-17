@@ -7,7 +7,7 @@
  * 搜索层数过高超时的问题
  * 中期问题
 */
-#define Debug
+//#define Debug
 #include<stdio.h> 
 #include<math.h>
 #include<string.h>
@@ -120,11 +120,11 @@ int main(){
         }
         if(!strncmp(Command, "TURN ", 4)){
             timeOfTurn = clock();
-            timeLimit = /*min(((MAXSEC - myTime) / (60 - curStep)), 1400)*/1200;
+            timeLimit = /*min(((MAXSEC - myTime) / (60 - curStep)), 1400)*/1300;
             depthManager();
             int bestVal = minMax(true, 0, -Inf, Inf);
             deepeningCommand = moveCommand;
-            if(clock() - timeOfTurn <= 300 && curStep <= 48) iterativeDeepening(bestVal);
+            if(clock() - timeOfTurn > 0 && clock() - timeOfTurn <= 175 && curStep <= 48) iterativeDeepening(bestVal);
             currentTime = clock();
             printMove();
             myTime += currentTime - timeOfTurn;
@@ -157,7 +157,7 @@ inline static void depthManager(){ /**O2 13 not O2 12***/
     curStep++;
     getRestChess();
     #ifdef FAST
-        Depth = 12;
+        Depth = 10;
         if(curStep > 50) Depth = 60 - curStep + 1;
     #endif
     #ifndef FAST
@@ -165,17 +165,18 @@ inline static void depthManager(){ /**O2 13 not O2 12***/
     #endif
 }
 inline static void iterativeDeepening(int preBest){
-    #ifdef Debug
-        printf("iterativeDeepened Depth = 13\n");
-    #endif
-    for(Depth = 14; Depth <= 14; Depth += 2){
-        //if(clock() - timeOfTurn >= 900) return;
+    for(Depth = 12; Depth <= 14; Depth += 2){
+        if(clock() - timeOfTurn >= 220) return;
+        printf("DEBUG %d %d\n", clock() - timeOfTurn, Depth), fflush(stdout);
+        #ifdef Debug
+            printf("iterativeDeepened Depth = %d time %.3f\n", Depth, (clock() - timeOfTurn) / (double)CLOCKS_PER_SEC );
+        #endif
         int bestVal = minMax(true, 0, -Inf, Inf);
-        if(clock() - timeOfTurn >= timeLimit) return;
         if(bestVal >= preBest){
             deepeningCommand = moveCommand;
             preBest = bestVal;
         } 
+        if(clock() - timeOfTurn >= timeLimit) return;
     }
 }
 inline static bool isNotInBound(int r, int c){
@@ -592,10 +593,8 @@ void makeMove(bool isMaxNode, int  color, int  depth, int r, int c, int alpha, i
 int minMax(bool isMaxNode, int depth, int alpha, int beta){
     if(depth >= Depth) return evaluateScore(isMaxNode);
     if(clock() - timeOfTurn >= timeLimit){
-        int cutOffScore = evaluateScore(isMaxNode);
-        if(isMaxNode) cutOffScore = cutOffScore > 0? cutOffScore << 1 : cutOffScore >> 1;
-            else cutOffScore = cutOffScore > 0 ? cutOffScore >> 1 : cutOffScore << 1;
-        return cutOffScore;  
+        if(isMaxNode) return Inf;
+        return -Inf;
     }
     int cntChess, copyLongestJump, copyCntJump; //使用局部变量防止递归修改值
     chess copyMoveChess[PIECE + 1], copyJumpChess[PIECE + 1];
