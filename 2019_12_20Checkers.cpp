@@ -17,8 +17,6 @@
 #include<time.h> 
 #define place(x, y) printf(" %d,%d", x, y)
 const int Inf = 0x3f3f3f3f;
-const int MAXCNT = 4720000;
-const int MINCNT = 550000;
 //CLOCKS_PER_SEC
 /********************/
 #define SIZE 8 
@@ -41,7 +39,7 @@ time_t myTime;
 int Depth;
 int myColor, opponentColor;
 /********step options************/
-int curStep, interativeCnt;
+int curStep;
 int myResChess, opponentResChess;
 /********step options**********/
 char Command[SIZE * SIZE]; //store orders
@@ -119,9 +117,9 @@ int main(){
             int bestVal = minMax(true, 0, -Inf, Inf);
             deepeningCommand = moveCommand;
             #ifdef Debug
-            printf("first Depth = %d cnt = %d time %.3f\n", Depth, interativeCnt, (clock() - timeOfTurn) / (double)CLOCKS_PER_SEC );
+            printf("first Depth = %d cnt = %d time %.3f\n", Depth, 0, (clock() - timeOfTurn) / (double)CLOCKS_PER_SEC );
             #endif
-            if(interativeCnt <= MINCNT && curStep <= 50) iterativeDeepening(bestVal);
+            if(clock() - timeOfTurn < 170 && curStep <= 50) iterativeDeepening(bestVal);
             currentTime = clock();
             printMove();
             #ifdef Debug
@@ -149,7 +147,7 @@ inline static void getRestChess(){
         if(Chess[i].color) opponentResChess++;
 }
 inline static void depthManager(){ /**O2 13 not O2 12***/
-    curStep++, interativeCnt = 0;
+    curStep++;
     getRestChess();
     #ifdef FAST
         Depth = 11;
@@ -162,14 +160,15 @@ inline static void depthManager(){ /**O2 13 not O2 12***/
 inline static void iterativeDeepening(int preBest){
     for(Depth = 13; Depth <= 15; Depth +=2){
         #ifdef Debug
-            printf("iterativeDeepened Depth = %d cnt = %d time %.3f\n", Depth, interativeCnt, (clock() - timeOfTurn) / (double)CLOCKS_PER_SEC );
+            printf("iterativeDeepened Depth = %d cnt = %d time %.3f\n", Depth, 0, (clock() - timeOfTurn) / (double)CLOCKS_PER_SEC );
         #endif
         int bestVal = minMax(true, 0, -Inf, Inf);
         #ifdef Debug
-            printf("iterativeDeepened Depth = %d cnt = %d time %.3f\n", Depth, interativeCnt, (clock() - timeOfTurn) / (double)CLOCKS_PER_SEC );
+            printf("iterativeDeepened Depth = %d cnt = %d time %.3f\n", Depth, 0, (clock() - timeOfTurn) / (double)CLOCKS_PER_SEC );
         #endif
-        if(interativeCnt >= MINCNT) {
-            if(interativeCnt <= MAXCNT) deepeningCommand = moveCommand, preBest = bestVal;
+        time_t deepeningTime = clock() - timeOfTurn;
+        if(deepeningTime > 180) {
+            if(deepeningTime <= 1500) deepeningCommand = moveCommand, preBest = bestVal;
             else if(bestVal >= preBest){
                 deepeningCommand = moveCommand;
                 preBest = bestVal;
@@ -362,7 +361,7 @@ inline static int evaluateScore(bool isMaxNode){/*should be much more complex, n
         board * pBoard = &Board[r][c];
         if(pBoard->isKing) opponentScore += KINGVALUE;
             else opponentScore += CHESSVALUE;
-        thisJump = 0, longestJump = 0;
+        thisJump = 0;
         jumpJudge(opponentColor, r, c, 0);
         longestJump = max(longestJump, thisJump);
         if(pBoard->isKing) continue;
@@ -374,7 +373,7 @@ inline static int evaluateScore(bool isMaxNode){/*should be much more complex, n
             opponentScore += (SIZE - 1 - r) << 4;
         }
     }
-    myScore -= HALF(KINGVALUE) * longestJump;
+    myScore -= longestJump << 8;
     return (myScore - opponentScore);
 }
 void jumpJudge(int color/*color of current player*/, int  r, int  c, int cJump){
@@ -536,9 +535,8 @@ void makeMove(bool isMaxNode, int  color, int  depth, int r, int c, int alpha, i
     }
 }
 int minMax(bool isMaxNode, int depth, int alpha, int beta){
-    interativeCnt++;
     if(depth >= Depth) return evaluateScore(isMaxNode);
-    if(interativeCnt >= MAXCNT){
+    if(clock() - timeOfTurn > 1450){
         if(isMaxNode) return Inf;
         return -Inf;
     }
